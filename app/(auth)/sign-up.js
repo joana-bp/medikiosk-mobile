@@ -4,13 +4,15 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth';
 import { Body, Button, Chips, ErrorText, Field, Title } from '../../src/components/ui';
 import { AuthScreen, GlassCard } from '../../src/components/auth';
+import { SetupFlow } from '../../src/components/TwoFactor';
 
 const BLOOD_TYPES = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 const blank = { lastName: '', firstName: '', middleName: '', address: '', birthday: '', sex: '', bloodType: '', email: '', password: '', confirm: '' };
 
 export default function SignUp() {
   const router = useRouter();
-  const { signUp } = useAuth();
+  const { signUp, commitSession } = useAuth();
+  const [setupToken, setSetupToken] = useState(null); // set when the clinic requires two-step sign-in from the start
   const [f, setF] = useState(blank);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,12 +26,24 @@ export default function SignUp() {
     if (f.password !== f.confirm) return setError('Passwords do not match.');
     setBusy(true);
     try {
-      await signUp(f);
+      const r = await signUp(f); // when signed in, the router moves into the app by itself
+      if (r.step === 'setup') setSetupToken(r.setupToken);
     } catch (e) {
       setError(e.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  if (setupToken) {
+    return (
+      <AuthScreen>
+        <GlassCard>
+          <Body muted>Your account is created. One more step: this clinic asks everyone to use two-step verification.</Body>
+          <SetupFlow token={setupToken} onDone={commitSession} />
+        </GlassCard>
+      </AuthScreen>
+    );
   }
 
   return (
