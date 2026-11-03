@@ -17,10 +17,12 @@ function messageFrom(body, status) {
   return `Something went wrong (${status}).`;
 }
 
-export async function api(path, { method = 'GET', body, auth = true } = {}) {
+// `token` sends that exact token (a short-lived two-step sign-in token) instead of the saved session.
+export async function api(path, { method = 'GET', body, auth = true, token: override } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (auth && token) headers.Authorization = `Bearer ${token}`;
+  if (override) headers.Authorization = `Bearer ${override}`;
+  else if (auth && token) headers.Authorization = `Bearer ${token}`;
 
   let res;
   try {
@@ -30,7 +32,7 @@ export async function api(path, { method = 'GET', body, auth = true } = {}) {
   }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401 && auth && token) onUnauthorized();
+    if (res.status === 401 && auth && token && !override) onUnauthorized();
     const err = new Error(messageFrom(data, res.status));
     err.status = res.status;
     throw err;
